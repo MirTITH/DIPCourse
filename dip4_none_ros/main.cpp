@@ -4,6 +4,9 @@
 using namespace std;
 using namespace cv;
 
+static double angle(Point pt1, Point pt2, Point pt0);
+void findSquares(const Mat &image, Mat &out);
+
 typedef struct
 {
     int minH;
@@ -99,7 +102,11 @@ void TaskOneAndTwo()
 
 void TaskThree()
 {
-    auto srcImg = imread("src/dip4/img/img1.png");
+    auto srcImg = imread("src/dip4/img/img2.png");
+    Mat outImg;
+    findSquares(srcImg, outImg);
+    imshow("Rectangle", outImg);
+    waitKey(0);
     // imshow("Source image", srcImg);
 
     Mat gaussianImg;
@@ -262,7 +269,7 @@ void findSquares(const Mat &image, Mat &out)
                 Canny(gray_one, gray, 5, thresh, 5);
                 //膨脹
                 dilate(gray, gray, Mat(), Point(-1, -1));
-                imshow("dilate", gray);
+                // imshow("dilate", gray);
             }
             else
             {
@@ -309,10 +316,14 @@ void findSquares(const Mat &image, Mat &out)
         int n = (int)squares[i].size();
         if (p->x > 3 && p->y > 3)
         {
+            for (int i = 0; i < n; i++)
+            {
+                cout << p[i] << " ";
+            }
+            cout << endl;
             polylines(out, &p, &n, 1, true, Scalar(0, 255, 0), 3, LINE_AA);
         }
     }
-    imshow("dst", out);
 }
 
 static double angle(Point pt1, Point pt2, Point pt0)
