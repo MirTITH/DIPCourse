@@ -83,8 +83,8 @@ int main(int argc, char **argv)
         GetLeftLinePoints(leftMask, leftPoints, 0.5);
         GetRightLinePoints(rightMask, rightPoints, 0.5);
 
-        DrawPoints(leftFrame, leftPoints, 2, Scalar(255, 100, 100), 2);
-        DrawPoints(leftFrame, rightPoints, 2, Scalar(100, 100, 255), 2);
+        // DrawPoints(leftFrame, leftPoints, 2, Scalar(255, 100, 100), 2);
+        // DrawPoints(leftFrame, rightPoints, 2, Scalar(100, 100, 255), 2);
 
         for (int i = 0; i < EdgePointNum; i++)
         {

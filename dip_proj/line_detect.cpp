@@ -107,10 +107,10 @@ Point3i GetRightLinePoint(const Mat &srcImg, Point2i start_pos)
 
 void GetLeftLinePoints(const Mat &srcImg, vector<Point3i> &points, double normlized_start_pos)
 {
-    Mat temp;
-    srcImg.copyTo(temp);
+    // Mat temp;
+    // srcImg.copyTo(temp);
 
-    cvtColor(temp, temp, COLOR_GRAY2BGR);
+    // cvtColor(temp, temp, COLOR_GRAY2BGR);
 
     int start_pos = InverseNormlizePoint(srcImg, Point2d(normlized_start_pos, 0)).x;
     int delta_start_pos = InverseNormlizePoint(srcImg, Point2d(0.1, 0)).x;
@@ -120,22 +120,22 @@ void GetLeftLinePoints(const Mat &srcImg, vector<Point3i> &points, double normli
     {
         start_point.y = point.y;
 
-        circle(temp, start_point, 1, Scalar(200, 100, 100), 1);
+        // circle(temp, start_point, 1, Scalar(200, 100, 100), 1);
 
         point = GetLeftLinePoint(srcImg, start_point);
         start_point.x = point.x + delta_start_pos;
 
-        circle(temp, Point(point.x, point.y), 2, Scalar(255, 100, 100), 2);
+        // circle(temp, Point(point.x, point.y), 2, Scalar(255, 100, 100), 2);
     }
-    imshow("GetLeftLinePoints", temp);
+    // imshow("GetLeftLinePoints", temp);
 }
 
 void GetRightLinePoints(const Mat &srcImg, vector<Point3i> &points, double normlized_start_pos)
 {
-    Mat temp;
-    srcImg.copyTo(temp);
+    // Mat temp;
+    // srcImg.copyTo(temp);
 
-    cvtColor(temp, temp, COLOR_GRAY2BGR);
+    // cvtColor(temp, temp, COLOR_GRAY2BGR);
 
     int start_pos = InverseNormlizePoint(srcImg, Point2d(normlized_start_pos, 0)).x;
     int delta_start_pos = InverseNormlizePoint(srcImg, Point2d(0.1, 0)).x;
@@ -145,14 +145,14 @@ void GetRightLinePoints(const Mat &srcImg, vector<Point3i> &points, double norml
     {
         start_point.y = point.y;
 
-        circle(temp, start_point, 1, Scalar(200, 100, 100), 1);
+        // circle(temp, start_point, 1, Scalar(200, 100, 100), 1);
 
         point = GetRightLinePoint(srcImg, start_point);
         start_point.x = point.x - delta_start_pos;
 
-        circle(temp, Point(point.x, point.y), 2, Scalar(255, 100, 100), 2);
+        // circle(temp, Point(point.x, point.y), 2, Scalar(255, 100, 100), 2);
     }
-    imshow("GetRightLinePoints", temp);
+    // imshow("GetRightLinePoints", temp);
 }
 
 /**
