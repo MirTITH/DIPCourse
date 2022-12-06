@@ -20,6 +20,15 @@ double diffCalc(vector<Point3d> leftLine,vector<Point3d> rightLine,vector<Point3
     double diff=0;
     if(mode = 3)
     {
-        diff = EXP_MIDDLE - middleLine[LINE_POS].x
+        diff = EXP_MIDDLE - middleLine[LINE_POS].x;
     }
+    if(mode = 2)
+    {
+        diff = EXP_RIGHT - rightLine[LINE_POS].x;
+    }
+    if(mode = 1)
+    {
+        diff = EXP_LEFT - leftLine[LINE_POS].x;
+    }
+    return diff;
 }

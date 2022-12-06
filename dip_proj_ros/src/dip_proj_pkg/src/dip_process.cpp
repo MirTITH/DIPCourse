@@ -6,11 +6,11 @@
 using namespace std;
 using namespace cv;
 
-extern double endlineDistance = 0;
+extern double endlineDistance;
 extern std::vector<Vec2f> endlines;
-extern std::vector<Point3d> sendleftLine(EdgePointNum);
-extern std::vector<Point3d> sendrightLine(EdgePointNum);
-extern std::vector<Point3d> sendmiddleLine(EdgePointNum);
+extern std::vector<Point3d> sendleftLine;
+extern std::vector<Point3d> sendrightLine;
+extern std::vector<Point3d> sendmiddleLine;
 
 void SplitFrame(const Mat &srcFrame, Mat &leftFrame, Mat &rightFrame)
 {
