@@ -3,15 +3,16 @@
 #include "dip_process.hpp"
 #include <thread>
 #include "pill_detect.hpp"
+#include "pid_calc.hpp"
 
 using namespace std;
 using namespace cv;
 
 int main(int argc, char **argv)
 {
-    // auto dip_thread = thread(dip_main);
-    // dip_thread.join();
-    dip_main();
+    auto dip_thread = thread(dip_main);
+    pid_main(argc, argv);
+    dip_thread.join();
     //pill_detect_main();
     return 0;
 }

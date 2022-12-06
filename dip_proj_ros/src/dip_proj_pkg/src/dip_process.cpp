@@ -2,6 +2,7 @@
 #include "line_detect.hpp"
 #include "color_split.hpp"
 #include <thread>
+#include <atomic>
 
 using namespace std;
 using namespace cv;
@@ -11,6 +12,7 @@ extern std::vector<Vec2f> endlines;
 extern std::vector<Point3d> sendleftLine;
 extern std::vector<Point3d> sendrightLine;
 extern std::vector<Point3d> sendmiddleLine;
+extern atomic_bool dip_main_running;
 
 void SplitFrame(const Mat &srcFrame, Mat &leftFrame, Mat &rightFrame)
 {
@@ -144,7 +146,7 @@ void dip_main()
 
     Mat srcFrame, leftFrame, rightFrame;
 
-    while (true)
+    while (dip_main_running)
     {
         // // 实现循环播放
         // if (capture.get(cv::CAP_PROP_POS_FRAMES) == 600)

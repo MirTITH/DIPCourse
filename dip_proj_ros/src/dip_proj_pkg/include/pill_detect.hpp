@@ -2,4 +2,4 @@
 #include <opencv2/opencv.hpp>
 #include <vector>
 
-void pill_detect_main();
+int pill_detect_main();

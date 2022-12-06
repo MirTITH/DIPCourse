@@ -16,7 +16,7 @@ set(CMAKE_CXX_STANDARD 17)
 
 add_message_files(
   FILES
-  dip_process.msg
+  pid_driver.msg
 )
 
 generate_messages(

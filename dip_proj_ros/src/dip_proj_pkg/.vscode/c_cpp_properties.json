@@ -7,8 +7,8 @@
       },
       "includePath": [
         "/opt/ros/noetic/include/**",
-        "/home/sch/dip_ws/src/dip_pid_pkg/include/**",
-        "/home/sch/dip_ws/src/dip_proj_pkg/include/**",
+        "/home/sch/下载/DIPCourse/dip_proj_ros/devel/include/**",
+        "/home/sch/下载/DIPCourse/dip_proj_ros/src/dip_proj_pkg/include/**",
         "/usr/include/**"
       ],
       "name": "ROS",

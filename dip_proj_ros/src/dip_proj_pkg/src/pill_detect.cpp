@@ -5,6 +5,8 @@
 using namespace std;
 using namespace cv;
 
+//const double compactnessLimit = 
+
 bool IsClosedContour(vector<Vec4i> hierarchys, int index)
 {
     if (hierarchys[index][2] != -1)
@@ -188,7 +190,7 @@ vector<vector<Point>> GetClosedBrothers(const vector<Vec4i> hierarchys, const ve
     return result;
 }
 
-void pill_detect_main()
+int pill_detect_main()
 {
     bool isPause = false;
     // cv::Mat img[2];
@@ -197,6 +199,7 @@ void pill_detect_main()
     VideoCapture cap;
     cap.open(CameraNumber);
     Mat frame;
+    int flag = 0;
     // int index = 0;
     while (true)
     {
@@ -273,20 +276,36 @@ void pill_detect_main()
             ellipse(contoursImg, fitted_ellipse, Scalar(255, 100, 100));
         }
 
-        imshow("contoursImg", contoursImg);
+        //imshow("contoursImg", contoursImg);
 
-        cout << compactness << ' ' << eccentricity << endl;
-
+        //cout << compactness << ' ' << eccentricity << endl;
         char c = waitKey(1);
-        switch (c)
+        // switch (c)
+        // {
+        // case 'q':
+        //     exit(0);
+        //     break;
+        // case 'p':
+        //     isPause = !isPause;
+        // default:
+        //     break;
+        // };
+        //return 1右转，return -1左转
+        if((compactness < 15)&&(compactness > 13)&&(eccentricity < 0.5))
         {
-        case 'q':
-            exit(0);
-            break;
-        case 'p':
-            isPause = !isPause;
-        default:
-            break;
-        };
+            flag++;
+        }
+        else if((compactness > 15)&&(eccentricity > 0.6))
+        {
+            flag--;
+        }
+        if(flag > 5)
+        {
+            return 1;
+        }
+        if(flag < -5)
+        {
+            return -1;
+        }
     }
 }
