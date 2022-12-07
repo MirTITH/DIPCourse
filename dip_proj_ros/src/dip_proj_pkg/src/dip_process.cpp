@@ -3,6 +3,7 @@
 #include "color_split.hpp"
 #include <thread>
 #include <atomic>
+#include <mutex>
 
 using namespace std;
 using namespace cv;
@@ -13,6 +14,8 @@ extern std::vector<Point3d> sendleftLine;
 extern std::vector<Point3d> sendrightLine;
 extern std::vector<Point3d> sendmiddleLine;
 extern atomic_bool dip_main_running;
+
+std::mutex MyMutex;
 
 void SplitFrame(const Mat &srcFrame, Mat &leftFrame, Mat &rightFrame)
 {
@@ -115,16 +118,17 @@ void EndLineDetect(const Mat &BinaryImg,double &distance,vector<Vec2f> &lines)
     Mat temp;
     BinaryImg.copyTo(temp);
     cvtColor(temp, temp, COLOR_GRAY2BGR);
-    HoughLines(BinaryImg, lines, 1, CV_PI / 360, 500, 0, 0, 80.0 / 180.0 * CV_PI, 100.0 / 180.0 * CV_PI);
+    HoughLines(BinaryImg, lines, 1, CV_PI / 360, 200, 0, 0, 80.0 / 180.0 * CV_PI, 100.0 / 180.0 * CV_PI);
     distance = CalcLinesAvgDistance(BinaryImg, lines);
     string lineNumText = to_string(distance);
+    string lineNumSizeText = to_string(lines.size());
     putText(temp, lineNumText, temp.size() / 2, cv::FONT_HERSHEY_SCRIPT_SIMPLEX, 1, Scalar(200, 200, 255), 2);
+    putText(temp, lineNumSizeText, temp.size() / 3, cv::FONT_HERSHEY_SCRIPT_SIMPLEX, 1, Scalar(200, 200, 255), 2);
     imshow("EndLineDetect", temp);
 }
 
-void dip_main()
+void dip_main(VideoCapture *capture)
 {
-    VideoCapture capture(CameraNumber);
     Mat frame;
     bool isPause = false;
     std::vector<Point3i> leftPoints(EdgePointNum);
@@ -139,12 +143,14 @@ void dip_main()
     // std::vector<Point3d> sendrightLine(EdgePointNum);
     // std::vector<Point3d> sendmiddleLine(EdgePointNum);
     //
-    if (!capture.isOpened())
+    if (!capture->isOpened())
     {
         cout << "Cound not read video" << endl;
     }
 
     Mat srcFrame, leftFrame, rightFrame;
+
+    dip_main_running = true;
 
     while (dip_main_running)
     {
@@ -156,9 +162,11 @@ void dip_main()
 
         if (!isPause)
         {
-            capture >> frame;
-            resize(frame, frame, Size(frame.cols / 3, frame.rows / 3));
+
         }
+
+        *capture >> frame;
+        resize(frame, frame, frame.size() / 2);
 
         frame.copyTo(srcFrame);
 
@@ -191,22 +199,30 @@ void dip_main()
         //更新底线数据
         EndLineDetect(leftMask,tempDistance,tempLines);
         
+        std::lock_guard<std::mutex> guard(MyMutex);
         endlineDistance = tempDistance;
         endlines = tempLines;
         sendleftLine = NormlizePoints(leftFrame,leftPoints);
         sendrightLine = NormlizePoints(leftFrame,rightPoints);
         sendmiddleLine = NormlizePoints(leftFrame,middlePoints);
+        
+        MyMutex.unlock();
         // char c = waitKey(1000 / capture.get(cv::CAP_PROP_FPS));
-        // char c = waitKey(1);
-        // switch (c)
-        // {
-        // case 'q':
-        //     exit(0);
-        //     break;
-        // case 'p':
-        //     isPause = !isPause;
-        // default:
-        //     break;
-        // }
+        char c = waitKey(1);
+        switch (c)
+        {
+        case 'q':
+            exit(0);
+            break;
+        case 'p':
+            isPause = !isPause;
+        default:
+            break;
+        }
     }
+
+
+    // this_thread::sleep_for(10s);
+    // exit(0);
+    
 }

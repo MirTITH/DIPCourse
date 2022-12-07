@@ -12,7 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
    message_generation
 )
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 14)
 
 add_message_files(
   FILES

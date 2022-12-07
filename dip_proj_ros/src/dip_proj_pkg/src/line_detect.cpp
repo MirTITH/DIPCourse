@@ -25,17 +25,17 @@ void DrawPoints(cv::Mat &srcImg, vector<Point3i> points, int radius, const cv::S
 Point2d NormlizePoint(const Mat &srcImg, Point2i real_point)
 {
     Point2d normalized_point;
-    normalized_point.x = real_point.x / (srcImg.cols - 1);
-    normalized_point.y = real_point.y / (srcImg.rows - 1);
+    normalized_point.x = (double)real_point.x / (srcImg.cols - 1);
+    normalized_point.y = (double)real_point.y / (srcImg.rows - 1);
     return normalized_point;
 }
 
 Point3d NormlizePoint(const Mat &srcImg, Point3i real_point)
 {
     Point3d normalized_point;
-    normalized_point.x = real_point.x / (srcImg.cols - 1);
-    normalized_point.y = real_point.y / (srcImg.rows - 1);
-    normalized_point.z = real_point.z;
+    normalized_point.x = (double)real_point.x / (srcImg.cols - 1);
+    normalized_point.y = (double)real_point.y / (srcImg.rows - 1);
+    normalized_point.z = (double)real_point.z;
     return normalized_point;
 }
 

@@ -1,21 +1,24 @@
 #include "pid_calc.hpp"
 #include <atomic>
 #include <thread>
+#include <mutex>
 
 using namespace std;
 using namespace cv;
+
+extern std::mutex MyMutex;
 
 //左到右对应[0,1]
 #define EXP_LEFT 0.3
 #define EXP_MIDDLE 0.5
 #define EXP_RIGHT 0.8
 //最下方0，最上方99
-#define LINE_POS 50
+#define LINE_POS 10
 
-const double Kp = 0.0;
+const double Kp = 1;
 const double Ki = 0.0;
 const double Kd = 0.0;
-const double Vcar = 0;
+const double Vcar = 0.1;
 const double LimitDistance = 100;
 const double magicOmega = 0.5;
 #define magicTime 1s 
@@ -28,8 +31,9 @@ vector<Point3d> sendrightLine(EdgePointNum);
 vector<Point3d> sendmiddleLine(EdgePointNum);
 atomic_bool dip_main_running;
 
-double diffCalc(vector<Point3d> leftLine, vector<Point3d> rightLine, vector<Point3d> middleLine, int mode)
+double diffCalc(vector<Point3d> &leftLine, vector<Point3d> &rightLine, vector<Point3d> &middleLine, int mode)
 {
+    std::lock_guard<std::mutex> guard(MyMutex);
     double diff = 0;
     if (mode = 3)
     {
@@ -43,6 +47,7 @@ double diffCalc(vector<Point3d> leftLine, vector<Point3d> rightLine, vector<Poin
     {
         diff = EXP_LEFT - leftLine[LINE_POS].x;
     }
+    cout << "diff:" << diff << endl;
     return diff;
 }
 
@@ -98,7 +103,7 @@ void magic_turning(int turn,ros::Publisher &vel_pub)
     }
 }
 
-void pid_main(int argc, char **argv)
+void pid_main(int argc, char **argv, VideoCapture &capture)
 {
     dip_main_running = true;
     int RunMode = 3;
@@ -108,23 +113,33 @@ void pid_main(int argc, char **argv)
     int turnflag = 0;
     ros::init(argc,argv,"ColorMove");
     ros::NodeHandle n;
-    ros::Publisher vel_pub = n.advertise<geometry_msgs::Twist>("cmd_vel", 5);
+    ros::Publisher vel_pub = n.advertise<geometry_msgs::Twist>("smoother_cmd_vel", 5);
     while (true)
     {
+        ros::Rate loop_rate(10);
         diff = diffCalc(sendleftLine, sendrightLine, sendmiddleLine, RunMode);
         DIPPID(diff, omega);
         pub_vel(Vcar,omega,isMove,vel_pub);
-        if((endlineDistance < LimitDistance)&&(sizeof(endlines) > 10))
+        // std::lock_guard<std::mutex> guard(MyMutex);
+        MyMutex.lock();
+        auto distance = endlineDistance;
+        MyMutex.unlock();
+        // if((endlineDistance > LimitDistance)&&(endlines.size() > 10))
+        if(true)
         {
             isMove = false;
             dip_main_running = false;
             this_thread::sleep_for(0.2s);
-            turnflag = pill_detect_main();
+            turnflag = pill_detect_main(capture);
             magic_turning(turnflag,vel_pub);
+            pub_vel(0,0,true,vel_pub);
+            this_thread::sleep_for(0.5s);
             pub_vel(Vcar,0,true,vel_pub);
-            this_thread::sleep_for(1s);
+            this_thread::sleep_for(3s);
             pub_vel(0,0,false,vel_pub);
-            return;
+            exit(0);
         }
+
+        loop_rate.sleep();
     }
 }

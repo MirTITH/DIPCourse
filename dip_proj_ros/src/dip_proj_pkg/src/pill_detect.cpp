@@ -190,14 +190,12 @@ vector<vector<Point>> GetClosedBrothers(const vector<Vec4i> hierarchys, const ve
     return result;
 }
 
-int pill_detect_main()
+int pill_detect_main(VideoCapture &cap)
 {
     bool isPause = false;
     // cv::Mat img[2];
     // img[0] = imread("../picture/left.png");
     // img[1] = imread("../picture/right.png");
-    VideoCapture cap;
-    cap.open(CameraNumber);
     Mat frame;
     int flag = 0;
     // int index = 0;
@@ -215,13 +213,28 @@ int pill_detect_main()
 
         // img[index].copyTo(frame);
 
+        cout << "aaa\n";
+
         if (isPause == false)
         {
             cap >> frame;
         }
+        cout << "ass\n";
         resize(frame, frame, frame.size() / 2);
         //非双目摄像头调试注释此处
         //SplitFrameLeft(frame,frame);
+
+        imshow("Pill", frame);
+
+        char ca = waitKey(3000);
+        switch (ca)
+        {
+        case 'q':
+            exit(0);
+            break;
+        default:
+            break;
+        };
 
         for (int i = 0; i < 10; i++)
         {
@@ -271,25 +284,25 @@ int pill_detect_main()
             compactness += (totalLength * totalLength) / totalArea / pills.size();
 
             auto fitted_ellipse = fitEllipse(pill);
-            eccentricity += sqrt(1 - pow(fitted_ellipse.size.aspectRatio(), 2)) / pills.size();
+            eccentricity += sqrt(1 - pow(fitted_ellipse.size.width / fitted_ellipse.size.height, 2)) / pills.size();
 
-            ellipse(contoursImg, fitted_ellipse, Scalar(255, 100, 100));
+            ellipse(contoursImg, fitted_ellipse, Scalar(255, 100, 100),2);
         }
 
         //imshow("contoursImg", contoursImg);
 
         //cout << compactness << ' ' << eccentricity << endl;
         char c = waitKey(1);
-        // switch (c)
-        // {
-        // case 'q':
-        //     exit(0);
-        //     break;
-        // case 'p':
-        //     isPause = !isPause;
-        // default:
-        //     break;
-        // };
+        switch (c)
+        {
+        case 'q':
+            exit(0);
+            break;
+        case 'p':
+            isPause = !isPause;
+        default:
+            break;
+        };
         //return 1右转，return -1左转
         if((compactness < 15)&&(compactness > 13)&&(eccentricity < 0.5))
         {
