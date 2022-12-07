@@ -6,9 +6,9 @@
         "limitSymbolsToIncludedHeaders": false
       },
       "includePath": [
+        "/home/xy/Documents/DIPCourse/dip_proj_ros/devel/include/**",
         "/opt/ros/noetic/include/**",
-        "/home/sch/下载/DIPCourse/dip_proj_ros/devel/include/**",
-        "/home/sch/下载/DIPCourse/dip_proj_ros/src/dip_proj_pkg/include/**",
+        "/home/xy/Documents/DIPCourse/dip_proj_ros/src/dip_proj_pkg/include/**",
         "/usr/include/**"
       ],
       "name": "ROS",

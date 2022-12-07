@@ -4,23 +4,24 @@
 #include <thread>
 #include "pill_detect.hpp"
 #include "pid_calc.hpp"
-#include <signal.h>
+#include "cv_thread.hpp"
 
 using namespace std;
 using namespace cv;
 
-// void signal_callback_handler(int signum){
-//     cout << "caught: " << signum << endl;
-//     exit(0);
-// }
-
 int main(int argc, char **argv)
 {
-    VideoCapture capture;
-    capture.open(CameraNumber);
-    auto dip_thread = thread(dip_main, &capture);
-    pid_main(argc, argv, capture);
-    dip_thread.join();
-    //pill_detect_main();
+    ros::init(argc, argv, "XY_SCH");
+    ros::NodeHandle n;
+    ros::Publisher vel_pub = n.advertise<geometry_msgs::Twist>("smoother_cmd_vel", 5);
+
+    CvState = CV_STATE::Pause;
+
+    auto cv_thread = thread(CvThread);
+    cv_thread.detach();
+
+    auto pid_thread = thread(pid_main, &vel_pub);
+    pid_thread.join();
+
     return 0;
 }

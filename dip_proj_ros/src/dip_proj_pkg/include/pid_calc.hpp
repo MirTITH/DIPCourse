@@ -6,7 +6,15 @@
 #include "geometry_msgs/Twist.h"
 #include "pill_detect.hpp"
 
+enum class PID_CALC_STATE
+{
+    Running,
+    PillDetecting,
+    Stop
+};
+
+extern std::atomic<PID_CALC_STATE> PidCalcState;
 
 void pub_vel(double v, double omega, bool isMove);
 
-void pid_main(int argc, char **argv, cv::VideoCapture &capture);
+void pid_main(ros::Publisher *vel_pub);

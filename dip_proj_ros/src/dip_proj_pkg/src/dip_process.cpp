@@ -4,18 +4,10 @@
 #include <thread>
 #include <atomic>
 #include <mutex>
+#include "cv_thread.hpp"
 
 using namespace std;
 using namespace cv;
-
-extern double endlineDistance;
-extern std::vector<Vec2f> endlines;
-extern std::vector<Point3d> sendleftLine;
-extern std::vector<Point3d> sendrightLine;
-extern std::vector<Point3d> sendmiddleLine;
-extern atomic_bool dip_main_running;
-
-std::mutex MyMutex;
 
 void SplitFrame(const Mat &srcFrame, Mat &leftFrame, Mat &rightFrame)
 {
@@ -47,7 +39,7 @@ Mat MergeFrame(const Mat &leftFrame, const Mat &rightFrame)
     return resultImg;
 }
 
-void NormalMode(const Mat leftMask, const Mat rightMask, Mat leftBGR, Mat rightBGR,std::vector<Point3i> &leftPoints,std::vector<Point3i> &rightPoints,std::vector<Point3i> &middlePoints)
+void NormalMode(const Mat leftMask, const Mat rightMask, Mat leftBGR, Mat rightBGR, std::vector<Point3i> &leftPoints, std::vector<Point3i> &rightPoints, std::vector<Point3i> &middlePoints)
 {
     auto left_thread = thread([&]()
                               {
@@ -75,28 +67,28 @@ void NormalMode(const Mat leftMask, const Mat rightMask, Mat leftBGR, Mat rightB
     imshow("EdgePoints", leftBGR);
 }
 
-void DrawLines(Mat &img,            //要标记直线的图像
-               vector<Vec2f> lines, //检测的直线数据
-               Scalar color,        //绘制直线的颜色
-               int thickness        //绘制直线的线宽
+void DrawLines(Mat &img,            // 要标记直线的图像
+               vector<Vec2f> lines, // 检测的直线数据
+               Scalar color,        // 绘制直线的颜色
+               int thickness        // 绘制直线的线宽
 )
 {
     Point pt1, pt2;
     for (size_t i = 0; i < lines.size(); i++)
     {
-        float rho = lines[i][0];                 //直线距离坐标原点的距离
-        float theta = lines[i][1];               //直线过坐标原点垂线与x轴夹角
-        double a = cos(theta);                   //夹角的余弦值
-        double b = sin(theta);                   //夹角的正弦值
-        double x0 = a * rho, y0 = b * rho;       //直线与过坐标原点的垂线的交点
-        double length = max(img.rows, img.cols); //图像高宽的最大值
-                                                 //计算直线上的一点
+        float rho = lines[i][0];                 // 直线距离坐标原点的距离
+        float theta = lines[i][1];               // 直线过坐标原点垂线与x轴夹角
+        double a = cos(theta);                   // 夹角的余弦值
+        double b = sin(theta);                   // 夹角的正弦值
+        double x0 = a * rho, y0 = b * rho;       // 直线与过坐标原点的垂线的交点
+        double length = max(img.rows, img.cols); // 图像高宽的最大值
+                                                 // 计算直线上的一点
         pt1.x = cvRound(x0 + length * (-b));
         pt1.y = cvRound(y0 + length * (a));
-        //计算直线上另一点
+        // 计算直线上另一点
         pt2.x = cvRound(x0 - length * (-b));
         pt2.y = cvRound(y0 - length * (a));
-        //两点绘制一条直线
+        // 两点绘制一条直线
         line(img, pt1, pt2, color, thickness);
     }
 }
@@ -106,14 +98,14 @@ double CalcLinesAvgDistance(const Mat &img, vector<Vec2f> lines)
     double distance = 0;
     for (auto line : lines)
     {
-        double rho = line[0];   //直线距离坐标原点的距离
-        double theta = line[1]; //直线过坐标原点垂线与x轴夹角
+        double rho = line[0];   // 直线距离坐标原点的距离
+        double theta = line[1]; // 直线过坐标原点垂线与x轴夹角
         distance += (rho / sin(theta) - img.cols / tan(theta) / 2) / lines.size();
     }
     return distance;
 }
 
-void EndLineDetect(const Mat &BinaryImg,double &distance,vector<Vec2f> &lines)
+void EndLineDetect(const Mat &BinaryImg, double &distance, vector<Vec2f> &lines)
 {
     Mat temp;
     BinaryImg.copyTo(temp);
@@ -127,7 +119,75 @@ void EndLineDetect(const Mat &BinaryImg,double &distance,vector<Vec2f> &lines)
     imshow("EndLineDetect", temp);
 }
 
-void dip_main(VideoCapture *capture)
+void dip_process_loop(VideoCapture &capture)
+{
+    Mat srcFrame, leftFrame, rightFrame;
+
+    capture >> srcFrame;
+    resize(srcFrame, srcFrame, srcFrame.size() / 2);
+
+    SplitFrame(srcFrame, leftFrame, rightFrame);
+
+    Mat leftMask, rightMask;
+
+    auto left_thread = thread([&]()
+                              {
+            medianBlur(leftFrame, leftFrame, 7);
+            leftMask = HSVSplitImg(leftFrame, 79, 151, 64, 241, 25, 217);
+            erode(leftMask, leftMask, getStructuringElement(MORPH_RECT, Size(3, 3)));
+            dilate(leftMask, leftMask, getStructuringElement(MORPH_RECT, Size(3, 5))); });
+
+    auto right_thread = thread([&]()
+                               {
+            medianBlur(rightFrame, rightFrame, 7);
+            rightMask = HSVSplitImg(rightFrame, 79, 151, 64, 241, 25, 217);
+            erode(rightMask, rightMask, getStructuringElement(MORPH_RECT, Size(3, 3)));
+            dilate(rightMask, rightMask, getStructuringElement(MORPH_RECT, Size(3, 5))); });
+
+    left_thread.join();
+    right_thread.join();
+
+    imshow("leftMask", leftMask);
+    imshow("rightMask", rightMask);
+
+    std::vector<Point3i> leftPoints(EdgePointNum);
+    std::vector<Point3i> rightPoints(EdgePointNum);
+    std::vector<Point3i> middlePoints(EdgePointNum);
+
+    // 更新搜线数据
+    NormalMode(leftMask, rightMask, leftFrame, rightFrame, leftPoints, rightPoints, middlePoints);
+
+    // 更新底线数据
+    double tempDistance = 0;
+    std::vector<Vec2f> tempLines;
+    EndLineDetect(leftMask, tempDistance, tempLines);
+
+    {
+        std::lock_guard<std::mutex> guard(MyMutex);
+
+        auto tempPoint = Point2d(0, tempDistance);
+        tempPoint = NormlizePoint(leftMask, tempPoint);
+
+        sender_endlineDistanceNormlized = tempPoint.y;
+        sender_endlines = tempLines;
+
+        sendleftLine = NormlizePoints(leftFrame, leftPoints);
+        sendrightLine = NormlizePoints(leftFrame, rightPoints);
+        sendmiddleLine = NormlizePoints(leftFrame, middlePoints);
+    };
+
+    char c = waitKey(1);
+    switch (c)
+    {
+    case 'q':
+        exit(0);
+        break;
+    default:
+        break;
+    }
+}
+
+/* void dip_main(VideoCapture *capture)
 {
     Mat frame;
     bool isPause = false;
@@ -136,12 +196,12 @@ void dip_main(VideoCapture *capture)
     std::vector<Point3i> middlePoints(EdgePointNum);
     double tempDistance = 0;
     std::vector<Vec2f> tempLines;
-    //需上锁变量
-    // double endlineDistance = 0;
-    // std::vector<Vec2f> endlines;
-    // std::vector<Point3d> sendleftLine(EdgePointNum);
-    // std::vector<Point3d> sendrightLine(EdgePointNum);
-    // std::vector<Point3d> sendmiddleLine(EdgePointNum);
+    // 需上锁变量
+    //  double endlineDistance = 0;
+    //  std::vector<Vec2f> endlines;
+    //  std::vector<Point3d> sendleftLine(EdgePointNum);
+    //  std::vector<Point3d> sendrightLine(EdgePointNum);
+    //  std::vector<Point3d> sendmiddleLine(EdgePointNum);
     //
     if (!capture->isOpened())
     {
@@ -162,7 +222,6 @@ void dip_main(VideoCapture *capture)
 
         if (!isPause)
         {
-
         }
 
         *capture >> frame;
@@ -193,19 +252,19 @@ void dip_main(VideoCapture *capture)
 
         imshow("leftMask", leftMask);
         imshow("rightMask", rightMask);
-        //更新搜线数据
-        NormalMode(leftMask, rightMask, leftFrame, rightFrame,leftPoints,rightPoints,middlePoints);
+        // 更新搜线数据
+        NormalMode(leftMask, rightMask, leftFrame, rightFrame, leftPoints, rightPoints, middlePoints);
 
-        //更新底线数据
-        EndLineDetect(leftMask,tempDistance,tempLines);
-        
+        // 更新底线数据
+        EndLineDetect(leftMask, tempDistance, tempLines);
+
         std::lock_guard<std::mutex> guard(MyMutex);
         endlineDistance = tempDistance;
         endlines = tempLines;
-        sendleftLine = NormlizePoints(leftFrame,leftPoints);
-        sendrightLine = NormlizePoints(leftFrame,rightPoints);
-        sendmiddleLine = NormlizePoints(leftFrame,middlePoints);
-        
+        sendleftLine = NormlizePoints(leftFrame, leftPoints);
+        sendrightLine = NormlizePoints(leftFrame, rightPoints);
+        sendmiddleLine = NormlizePoints(leftFrame, middlePoints);
+
         MyMutex.unlock();
         // char c = waitKey(1000 / capture.get(cv::CAP_PROP_FPS));
         char c = waitKey(1);
@@ -221,8 +280,6 @@ void dip_main(VideoCapture *capture)
         }
     }
 
-
     // this_thread::sleep_for(10s);
     // exit(0);
-    
-}
+} */

@@ -46,6 +46,7 @@ add_executable(${PROJECT_NAME}_node
     src/dip_process.cpp
     src/pill_detect.cpp
     src/pid_calc.cpp
+    src/cv_thread.cpp
 )
 
 target_link_libraries(${PROJECT_NAME}_node

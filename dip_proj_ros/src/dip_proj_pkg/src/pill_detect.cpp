@@ -5,7 +5,7 @@
 using namespace std;
 using namespace cv;
 
-//const double compactnessLimit = 
+// const double compactnessLimit =
 
 bool IsClosedContour(vector<Vec4i> hierarchys, int index)
 {
@@ -190,7 +190,89 @@ vector<vector<Point>> GetClosedBrothers(const vector<Vec4i> hierarchys, const ve
     return result;
 }
 
-int pill_detect_main(VideoCapture &cap)
+/**
+ * @brief
+ *
+ * @param cap VideoCapture
+ * @param compactness 紧致度
+ * @param eccentricity 偏心率
+ */
+void pill_detect_loop(VideoCapture &cap, double &compactness, double &eccentricity)
+{
+    cout << "pill_detect_loop\n";
+
+    compactness = 0;  // 紧致度
+    eccentricity = 0; // 偏心率
+
+    Mat frame;
+    int flag = 0;
+
+    cap >> frame;
+    resize(frame, frame, frame.size() / 2);
+
+    // 非双目摄像头调试注释此处
+    SplitFrameLeft(frame, frame);
+
+    for (int i = 0; i < 10; i++)
+    {
+        medianBlur(frame, frame, 11);
+    }
+
+    erode(frame, frame, getStructuringElement(MORPH_RECT, Size(15, 15)));
+    dilate(frame, frame, getStructuringElement(MORPH_RECT, Size(15, 15)));
+
+    Mat canny;
+    Canny(frame, canny, 50, 150);
+
+    vector<vector<Point>> contours, pills;
+    vector<Vec4i> hierarchys;
+    findContours(canny, contours, hierarchys, RETR_TREE, CHAIN_APPROX_NONE);
+
+    imshow("frame", frame);
+    imshow("canny", canny);
+
+    Mat contoursImg;
+    contoursImg = canny;
+    // canny.copyTo(contoursImg);
+    cvtColor(contoursImg, contoursImg, COLOR_GRAY2BGR);
+
+    auto color = Scalar(255, 100, 100);
+
+    for (int i = 0; i < hierarchys.size(); i++)
+    {
+        if (GetClosedBrotherNum(hierarchys, i) == 8)
+        {
+            pills = GetClosedBrothers(hierarchys, contours, i);
+        }
+    }
+
+    for (auto pill : pills)
+    {
+        auto totalArea = contourArea(pill);
+        auto totalLength = arcLength(pill, true);
+        compactness += (totalLength * totalLength) / totalArea / pills.size();
+
+        auto fitted_ellipse = fitEllipse(pill);
+        eccentricity += sqrt(1 - pow(fitted_ellipse.size.width / fitted_ellipse.size.height, 2)) / pills.size();
+
+        ellipse(contoursImg, fitted_ellipse, Scalar(255, 100, 100), 2);
+    }
+
+    imshow("contoursImg", contoursImg);
+
+    cout << "compactness: " << compactness << " eccentricity: " << eccentricity << endl;
+    char c = waitKey(1);
+    switch (c)
+    {
+    case 'q':
+        exit(0);
+        break;
+    default:
+        break;
+    };
+}
+
+/* int pill_detect_main(VideoCapture &cap)
 {
     bool isPause = false;
     // cv::Mat img[2];
@@ -321,4 +403,4 @@ int pill_detect_main(VideoCapture &cap)
             return -1;
         }
     }
-}
+} */
