@@ -14,33 +14,43 @@ atomic<PID_CALC_STATE> PidCalcState;
 #define EXP_MIDDLE 0.5
 #define EXP_RIGHT 0.8
 // 最下方0，最上方99
-#define LINE_POS 10
+#define LINE_POS 15
 
-const double Kp = 1;
+const double Kp = 5.5;
 const double Ki = 0.0;
-const double Kd = 0.0;
-const double Vcar = 0.1;
-const double LimitDistance = 0.8;
+const double Kd = 0.25;
+const double Vcar = 0.4;
+const double LimitDistance = 0.45;
 const double magicOmega = 0.5;
+
+bool lineFlag = false;
+
 #define magicTime 1s
 
 double diffCalc(vector<Point3d> &leftLine, vector<Point3d> &rightLine, vector<Point3d> &middleLine, int mode)
 {
     std::lock_guard<std::mutex> guard(MyMutex);
     double diff = 0;
-    if (mode = 3)
+
+    switch (mode)
     {
-        diff = EXP_MIDDLE - middleLine[LINE_POS].x;
-    }
-    if (mode = 2)
-    {
-        diff = EXP_RIGHT - rightLine[LINE_POS].x;
-    }
-    if (mode = 1)
-    {
+    case 1:
         diff = EXP_LEFT - leftLine[LINE_POS].x;
+        break;
+    case 2:
+        diff = EXP_RIGHT - rightLine[LINE_POS].x;
+        break;
+    case 3:
+        diff = EXP_MIDDLE - middleLine[LINE_POS].x;
+        break;
+
+    default:
+        break;
     }
-    cout << "diff:" << diff << endl;
+
+    cout << "diff:" << diff << "Mode" << mode << '\t';
+    cout << middleLine[LINE_POS] << endl;
+    // cout << middleLine;
     return diff;
 }
 
@@ -122,25 +132,39 @@ void pid_main(ros::Publisher *vel_pub)
         {
         case PID_CALC_STATE::Running:
             CvState = CV_STATE::LineSearching;
-            // PID 计算
-            diff = diffCalc(sendleftLine, sendrightLine, sendmiddleLine, RunMode);
-            DIPPID(diff, omega);
-            pub_vel(Vcar, omega, isMove, *vel_pub);
 
-            // 判断是否找到路口横线
             // 读取数据
             {
                 lock_guard<std::mutex> lock(MyMutex);
                 distance = sender_endlineDistanceNormlized;
-
                 endlines_size = sender_endlines.size();
             }
 
-            cout << "distance: " << distance << endl;
+            // PID 计算
+            diff = diffCalc(sendleftLine, sendrightLine, sendmiddleLine, RunMode);
+            DIPPID(diff, omega);
+            if (endlines_size < 2 && lineFlag == false)
+            {
+                pub_vel(Vcar, omega, isMove, *vel_pub);
+            }
+            else
+            {
+                cout << "\nStop!!!!!!!!!!\n"
+                     << endl;
+                lineFlag = true;
+                pub_vel(0, 0, isMove, *vel_pub);
+                loop_rate.sleep();
+            }
 
-            if ((distance > LimitDistance) && (endlines_size > 10))
+            // 判断是否找到路口横线
+
+            // cout << "distance: " << distance << endl;
+
+            if ((distance > LimitDistance) && (endlines_size > 3))
+            // if (true)
             {
                 isMove = false;
+                pub_vel(0, 0, true, *vel_pub);
                 PidCalcState = PID_CALC_STATE::PillDetecting;
                 CvState = CV_STATE::PillDetecting;
                 this_thread::sleep_for(0.2s);
@@ -183,13 +207,42 @@ void pid_main(ros::Publisher *vel_pub)
             }
             else
             {
-                magic_turning(turnDirection, *vel_pub);
-                pub_vel(0, 0, true, *vel_pub);
-                this_thread::sleep_for(0.5s);
-                pub_vel(Vcar, 0, true, *vel_pub);
-                this_thread::sleep_for(3s);
-                pub_vel(0, 0, false, *vel_pub);
-                return;
+                cout << "turnDirection: " << turnDirection << endl;
+                PidCalcState = PID_CALC_STATE::Running;
+                CvState = CV_STATE::LineSearching;
+                lineFlag = false;
+                isMove = true;
+                switch (turnDirection)
+                {
+                case -1:
+                    RunMode = 2;
+                    for (int i = 0; i < 10; i++)
+                    {
+                        pub_vel(0, 1.57, true, *vel_pub);
+                        loop_rate.sleep();
+                    }
+
+                    break;
+
+                case 1:
+                    RunMode = 1;
+                    for (int i = 0; i < 10; i++)
+                    {
+                        pub_vel(0, -1.57, true, *vel_pub);
+                        loop_rate.sleep();
+                    }
+                    break;
+
+                default:
+                    break;
+                }
+                // magic_turning(turnDirection, *vel_pub);
+                // pub_vel(0, 0, true, *vel_pub);
+                // this_thread::sleep_for(0.5s);
+                // pub_vel(Vcar, 0, true, *vel_pub);
+                // this_thread::sleep_for(3s);
+                // pub_vel(0, 0, false, *vel_pub);
+                // return;
             }
 
             break;

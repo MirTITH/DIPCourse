@@ -15,6 +15,4 @@ enum class PID_CALC_STATE
 
 extern std::atomic<PID_CALC_STATE> PidCalcState;
 
-void pub_vel(double v, double omega, bool isMove);
-
 void pid_main(ros::Publisher *vel_pub);
