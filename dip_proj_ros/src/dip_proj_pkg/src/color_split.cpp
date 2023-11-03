@@ -11,7 +11,17 @@ Mat HSVSplitImg(const Mat &srcImg, int minH, int maxH, int minS, int maxS, int m
 
     vector<Mat> Channels;
     split(hsvImg, Channels);
-    inRange(Channels[0], minH, maxH, mask[0]);
+    if (minH <= maxH)
+    {
+        inRange(Channels[0], minH, maxH, mask[0]);
+    }
+    else
+    {
+        Mat temp;
+        inRange(Channels[0], minH, 180, mask[0]);
+        inRange(Channels[0], 0, maxH, temp);
+        mask[0] |= temp;
+    }
     inRange(Channels[1], minS, maxS, mask[1]);
     inRange(Channels[2], minV, maxV, mask[2]);
 

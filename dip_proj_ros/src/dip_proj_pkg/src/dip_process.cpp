@@ -124,31 +124,52 @@ void dip_process_loop(VideoCapture &capture)
     Mat srcFrame, leftFrame, rightFrame;
 
     capture >> srcFrame;
+
+    if (capture.get(cv::CAP_PROP_POS_FRAMES) == capture.get(cv::CAP_PROP_FRAME_COUNT))
+    {
+        capture.set(cv::CAP_PROP_POS_FRAMES, 0);
+    }
+
     resize(srcFrame, srcFrame, srcFrame.size() / 2);
 
     SplitFrame(srcFrame, leftFrame, rightFrame);
 
     Mat leftMask, rightMask;
 
+    static int minH = 156;
+    static int maxH = 10;
+    static int minS = 182;
+    static int maxS = 255;
+    static int minV = 46;
+    static int maxV = 255;
+
     auto left_thread = thread([&]()
                               {
             medianBlur(leftFrame, leftFrame, 7);
-            leftMask = HSVSplitImg(leftFrame, 79, 151, 64, 241, 25, 217);
+            leftMask = HSVSplitImg(leftFrame, minH, maxH, minS, maxS, minV, maxV);
             erode(leftMask, leftMask, getStructuringElement(MORPH_RECT, Size(3, 3)));
             dilate(leftMask, leftMask, getStructuringElement(MORPH_RECT, Size(3, 5))); });
 
     auto right_thread = thread([&]()
                                {
             medianBlur(rightFrame, rightFrame, 7);
-            rightMask = HSVSplitImg(rightFrame, 79, 151, 64, 241, 25, 217);
+            rightMask = HSVSplitImg(rightFrame, minH, maxH, minS, maxS, minV, maxV);
             erode(rightMask, rightMask, getStructuringElement(MORPH_RECT, Size(3, 3)));
             dilate(rightMask, rightMask, getStructuringElement(MORPH_RECT, Size(3, 5))); });
 
     left_thread.join();
     right_thread.join();
 
-    imshow("leftMask", leftMask);
-    imshow("rightMask", rightMask);
+    cv::namedWindow("leftMask", cv::WINDOW_AUTOSIZE);
+    cv::createTrackbar("minH", "leftMask", &minH, 180);
+    cv::createTrackbar("maxH", "leftMask", &maxH, 180);
+    cv::createTrackbar("minS", "leftMask", &minS, 255);
+    cv::createTrackbar("maxS", "leftMask", &maxS, 255);
+    cv::createTrackbar("minV", "leftMask", &minV, 255);
+    cv::createTrackbar("maxV", "leftMask", &maxV, 255);
+
+    cv::imshow("leftMask", leftMask);
+    cv::imshow("rightMask", rightMask);
 
     std::vector<Point3i> leftPoints(EdgePointNum);
     std::vector<Point3i> rightPoints(EdgePointNum);

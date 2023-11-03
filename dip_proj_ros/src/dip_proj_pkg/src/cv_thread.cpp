@@ -20,8 +20,8 @@ double sender_eccentricity = 0;
 void CvThread()
 {
     VideoCapture capture;
-    // capture.open("/home/xy/Documents/DIPCourse/dip_proj_ros/src/dip_proj_pkg/video/1.webm");
-    capture.open(1);
+    capture.open("/home/xy/Documents/2.webm");
+    // capture.open(1);
 
     if (capture.isOpened() == false)
     {
@@ -34,35 +34,38 @@ void CvThread()
 
     while (true)
     {
-        switch (CvState)
-        {
-        case CV_STATE::LineSearching:
-            // cout << "CvThread LineSearching" << endl;
-            dip_process_loop(capture);
-            break;
-        case CV_STATE::PillDetecting:
-            // cout << "CvThread PillDetecting" << endl;
-            pill_detect_loop(capture, compactness, eccentricity);
+        // cout << "CvState: " << (int)CvState.load() << endl;
+        dip_process_loop(capture);
 
-            {
-                lock_guard<mutex> lock(MyMutex);
-                sender_compactness = compactness;
-                sender_eccentricity = eccentricity;
-            }
-            break;
-        case CV_STATE::Pause:
-            cout << "CvThread Pausing" << endl;
-            this_thread::sleep_for(10ms);
-            break;
+        // switch (CvState)
+        // {
+        // case CV_STATE::LineSearching:
+        //     // cout << "CvThread LineSearching" << endl;
+        //     dip_process_loop(capture);
+        //     break;
+        // case CV_STATE::PillDetecting:
+        //     // cout << "CvThread PillDetecting" << endl;
+        //     pill_detect_loop(capture, compactness, eccentricity);
 
-        case CV_STATE::Stop:
-            cout << "CvThread Stopped" << endl;
-            return;
-            break;
-        default:
-            cout << "CvThread:CvState undefined" << endl;
-            this_thread::sleep_for(10ms);
-            break;
-        }
+        //     {
+        //         lock_guard<mutex> lock(MyMutex);
+        //         sender_compactness = compactness;
+        //         sender_eccentricity = eccentricity;
+        //     }
+        //     break;
+        // case CV_STATE::Pause:
+        //     cout << "CvThread Pausing" << endl;
+        //     this_thread::sleep_for(10ms);
+        //     break;
+
+        // case CV_STATE::Stop:
+        //     cout << "CvThread Stopped" << endl;
+        //     return;
+        //     break;
+        // default:
+        //     cout << "CvThread:CvState undefined" << endl;
+        //     this_thread::sleep_for(10ms);
+        //     break;
+        // }
     }
 }
