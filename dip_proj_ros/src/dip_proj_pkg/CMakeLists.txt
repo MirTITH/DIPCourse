@@ -44,7 +44,6 @@ add_executable(${PROJECT_NAME}_node
     src/color_split.cpp
     src/line_detect.cpp
     src/dip_process.cpp
-    src/pill_detect.cpp
     src/pid_calc.cpp
     src/cv_thread.cpp
 )

@@ -4,12 +4,11 @@
 #include "dip_process.hpp"
 #include "ros/ros.h"
 #include "geometry_msgs/Twist.h"
-#include "pill_detect.hpp"
 
 enum class PID_CALC_STATE
 {
     Running,
-    PillDetecting,
+    Detecting,
     Stop
 };
 

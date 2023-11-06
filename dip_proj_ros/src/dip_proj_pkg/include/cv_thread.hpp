@@ -7,7 +7,7 @@
 enum class CV_STATE
 {
     LineSearching,
-    PillDetecting,
+    Detecting,
     Pause,
     Stop
 };
@@ -15,13 +15,8 @@ enum class CV_STATE
 extern std::mutex MyMutex;
 extern std::atomic<CV_STATE> CvState;
 
-extern double sender_endlineDistanceNormlized;
-extern std::vector<cv::Vec2f> sender_endlines;
-extern std::vector<cv::Point3d> sendleftLine;
-extern std::vector<cv::Point3d> sendrightLine;
-extern std::vector<cv::Point3d> sendmiddleLine;
-extern double sender_compactness;
-extern double sender_eccentricity;
-// extern std::atomic_bool dip_main_running;
+extern std::vector<cv::Point3d> kLeftLine;
+extern std::vector<cv::Point3d> kRightLine;
+extern std::vector<cv::Point3d> kMiddleLine;
 
 void CvThread();

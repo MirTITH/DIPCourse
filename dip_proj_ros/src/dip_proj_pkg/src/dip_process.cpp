@@ -39,7 +39,7 @@ Mat MergeFrame(const Mat &leftFrame, const Mat &rightFrame)
     return resultImg;
 }
 
-void NormalMode(const Mat leftMask, const Mat rightMask, Mat leftBGR, Mat rightBGR, std::vector<Point3i> &leftPoints, std::vector<Point3i> &rightPoints, std::vector<Point3i> &middlePoints)
+void SearchLine(const Mat leftMask, const Mat rightMask, Mat leftBGR, Mat rightBGR, std::vector<Point3i> &leftPoints, std::vector<Point3i> &rightPoints, std::vector<Point3i> &middlePoints)
 {
     auto left_thread = thread([&]()
                               {
@@ -125,11 +125,6 @@ void dip_process_loop(VideoCapture &capture)
 
     capture >> srcFrame;
 
-    if (capture.get(cv::CAP_PROP_POS_FRAMES) == capture.get(cv::CAP_PROP_FRAME_COUNT))
-    {
-        capture.set(cv::CAP_PROP_POS_FRAMES, 0);
-    }
-
     resize(srcFrame, srcFrame, srcFrame.size() / 2);
 
     SplitFrame(srcFrame, leftFrame, rightFrame);
@@ -176,25 +171,15 @@ void dip_process_loop(VideoCapture &capture)
     std::vector<Point3i> middlePoints(EdgePointNum);
 
     // 更新搜线数据
-    NormalMode(leftMask, rightMask, leftFrame, rightFrame, leftPoints, rightPoints, middlePoints);
+    SearchLine(leftMask, rightMask, leftFrame, rightFrame, leftPoints, rightPoints, middlePoints);
 
-    // 更新底线数据
-    double tempDistance = 0;
-    std::vector<Vec2f> tempLines;
-    EndLineDetect(leftMask, tempDistance, tempLines);
-
+    // 写入全局变量，供PID端使用
     {
         std::lock_guard<std::mutex> guard(MyMutex);
 
-        auto tempPoint = Point2d(0, tempDistance);
-        tempPoint = NormlizePoint(leftMask, tempPoint);
-
-        sender_endlineDistanceNormlized = tempPoint.y;
-        sender_endlines = tempLines;
-
-        sendleftLine = NormlizePoints(leftFrame, leftPoints);
-        sendrightLine = NormlizePoints(leftFrame, rightPoints);
-        sendmiddleLine = NormlizePoints(leftFrame, middlePoints);
+        kLeftLine = NormlizePoints(leftFrame, leftPoints);
+        kRightLine = NormlizePoints(leftFrame, rightPoints);
+        kMiddleLine = NormlizePoints(leftFrame, middlePoints);
     };
 
     char c = waitKey(1);
@@ -203,104 +188,10 @@ void dip_process_loop(VideoCapture &capture)
     case 'q':
         exit(0);
         break;
+    case 'Q':
+        exit(0);
+        break;
     default:
         break;
     }
 }
-
-/* void dip_main(VideoCapture *capture)
-{
-    Mat frame;
-    bool isPause = false;
-    std::vector<Point3i> leftPoints(EdgePointNum);
-    std::vector<Point3i> rightPoints(EdgePointNum);
-    std::vector<Point3i> middlePoints(EdgePointNum);
-    double tempDistance = 0;
-    std::vector<Vec2f> tempLines;
-    // 需上锁变量
-    //  double endlineDistance = 0;
-    //  std::vector<Vec2f> endlines;
-    //  std::vector<Point3d> sendleftLine(EdgePointNum);
-    //  std::vector<Point3d> sendrightLine(EdgePointNum);
-    //  std::vector<Point3d> sendmiddleLine(EdgePointNum);
-    //
-    if (!capture->isOpened())
-    {
-        cout << "Cound not read video" << endl;
-    }
-
-    Mat srcFrame, leftFrame, rightFrame;
-
-    dip_main_running = true;
-
-    while (dip_main_running)
-    {
-        // // 实现循环播放
-        // if (capture.get(cv::CAP_PROP_POS_FRAMES) == 600)
-        // {
-        //     capture.set(cv::CAP_PROP_POS_FRAMES, 0);
-        // }
-
-        if (!isPause)
-        {
-        }
-
-        *capture >> frame;
-        resize(frame, frame, frame.size() / 2);
-
-        frame.copyTo(srcFrame);
-
-        SplitFrame(srcFrame, leftFrame, rightFrame);
-
-        Mat leftMask, rightMask;
-
-        auto left_thread = thread([&]()
-                                  {
-            medianBlur(leftFrame, leftFrame, 7);
-            leftMask = HSVSplitImg(leftFrame, 79, 151, 64, 241, 25, 217);
-            erode(leftMask, leftMask, getStructuringElement(MORPH_RECT, Size(3, 3)));
-            dilate(leftMask, leftMask, getStructuringElement(MORPH_RECT, Size(3, 5))); });
-
-        auto right_thread = thread([&]()
-                                   {
-            medianBlur(rightFrame, rightFrame, 7);
-            rightMask = HSVSplitImg(rightFrame, 79, 151, 64, 241, 25, 217);
-            erode(rightMask, rightMask, getStructuringElement(MORPH_RECT, Size(3, 3)));
-            dilate(rightMask, rightMask, getStructuringElement(MORPH_RECT, Size(3, 5))); });
-
-        left_thread.join();
-        right_thread.join();
-
-        imshow("leftMask", leftMask);
-        imshow("rightMask", rightMask);
-        // 更新搜线数据
-        NormalMode(leftMask, rightMask, leftFrame, rightFrame, leftPoints, rightPoints, middlePoints);
-
-        // 更新底线数据
-        EndLineDetect(leftMask, tempDistance, tempLines);
-
-        std::lock_guard<std::mutex> guard(MyMutex);
-        endlineDistance = tempDistance;
-        endlines = tempLines;
-        sendleftLine = NormlizePoints(leftFrame, leftPoints);
-        sendrightLine = NormlizePoints(leftFrame, rightPoints);
-        sendmiddleLine = NormlizePoints(leftFrame, middlePoints);
-
-        MyMutex.unlock();
-        // char c = waitKey(1000 / capture.get(cv::CAP_PROP_FPS));
-        char c = waitKey(1);
-        switch (c)
-        {
-        case 'q':
-            exit(0);
-            break;
-        case 'p':
-            isPause = !isPause;
-        default:
-            break;
-        }
-    }
-
-    // this_thread::sleep_for(10s);
-    // exit(0);
-} */

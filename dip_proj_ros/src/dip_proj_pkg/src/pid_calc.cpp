@@ -10,23 +10,27 @@ using namespace cv;
 atomic<PID_CALC_STATE> PidCalcState;
 
 // 左到右对应[0,1]
-#define EXP_LEFT 0.3
-#define EXP_MIDDLE 0.5
-#define EXP_RIGHT 0.8
+#define EXP_LEFT 0.3   // 当车在道路中心时，看到的左线的位置
+#define EXP_MIDDLE 0.5 // 当车在道路中心时，看到的中线的位置
+#define EXP_RIGHT 0.8  // 当车在道路中心时，看到的右线的位置
+
 // 最下方0，最上方99
-#define LINE_POS 15
+#define LINE_POS 15 // 用边线在这个位置的点的偏差做伺服
 
 const double Kp = 5.5;
 const double Ki = 0.0;
 const double Kd = 0.25;
-const double Vcar = 0.4;
-const double LimitDistance = 0.45;
-const double magicOmega = 0.5;
+const double Vcar = 0.2; // 车速
 
-bool lineFlag = false;
-
-#define magicTime 1s
-
+/**
+ * @brief 计算车的偏移
+ *
+ * @param leftLine
+ * @param rightLine
+ * @param middleLine
+ * @param mode 1: 根据左线计算，可以让车在路口左转弯；2: 根据右线计算，可以让车在路口右转弯; 3: 根据中线计算，可以让车直行
+ * @return double
+ */
 double diffCalc(vector<Point3d> &leftLine, vector<Point3d> &rightLine, vector<Point3d> &middleLine, int mode)
 {
     std::lock_guard<std::mutex> guard(MyMutex);
@@ -48,9 +52,7 @@ double diffCalc(vector<Point3d> &leftLine, vector<Point3d> &rightLine, vector<Po
         break;
     }
 
-    cout << "diff:" << diff << "Mode" << mode << '\t';
-    cout << middleLine[LINE_POS] << endl;
-    // cout << middleLine;
+    cout << "diff:" << diff << " Mode" << mode << endl;
     return diff;
 }
 
@@ -90,30 +92,13 @@ void pub_vel(double v, double omega, bool isMove, ros::Publisher &vel_pub)
     vel_pub.publish(vel);
 }
 
-void magic_turning(int turn, ros::Publisher &vel_pub)
-{
-    if (turn = 1)
-    {
-        pub_vel(0, magicOmega, true, vel_pub);
-        this_thread::sleep_for(magicTime);
-        pub_vel(0, 0, true, vel_pub);
-    }
-    if (turn = -1)
-    {
-        pub_vel(0, -magicOmega, true, vel_pub);
-        this_thread::sleep_for(magicTime);
-        pub_vel(0, 0, true, vel_pub);
-    }
-}
-
 void pid_main(ros::Publisher *vel_pub)
 {
     PidCalcState = PID_CALC_STATE::Running;
-    // dip_main_running = true;
     int RunMode = 3;
-    bool isMove = true;
-    double diff = 0;
-    double omega = 0;
+    bool isMove = true; // 是否让车运动，设为 false 可以停车
+    double diff = 0;    // 车与期望方向的偏差
+    double omega = 0;   // 车的角速度
     int turnflagCount = 0;
     int turnDirection = 0; // 1右转, -1左转,0 待判断
 
@@ -133,119 +118,35 @@ void pid_main(ros::Publisher *vel_pub)
         case PID_CALC_STATE::Running:
             CvState = CV_STATE::LineSearching;
 
-            // 读取数据
-            {
-                lock_guard<std::mutex> lock(MyMutex);
-                distance = sender_endlineDistanceNormlized;
-                endlines_size = sender_endlines.size();
-            }
+            // PID 计算
+            diff = diffCalc(kLeftLine, kRightLine, kMiddleLine, RunMode);
+            DIPPID(diff, omega);
+            pub_vel(Vcar, omega, isMove, *vel_pub);
+
+            // TO DO
+            // if(岔道口){
+            //     PidCalcState = PID_CALC_STATE::Detecting;
+            // }
+
+            break;
+
+        case PID_CALC_STATE::Detecting:
+            pub_vel(0, 0, false, *vel_pub); // 停车
+            // 检测(TODO)
+            // if (turn_left)
+            // {
+            //     RunMode = 1;
+            // }
+            // else
+            // {
+            //     RunMode = 2;
+            // }
 
             // PID 计算
-            diff = diffCalc(sendleftLine, sendrightLine, sendmiddleLine, RunMode);
+            diff = diffCalc(kLeftLine, kRightLine, kMiddleLine, RunMode);
             DIPPID(diff, omega);
-            if (endlines_size < 2 && lineFlag == false)
-            {
-                pub_vel(Vcar, omega, isMove, *vel_pub);
-            }
-            else
-            {
-                cout << "\nStop!!!!!!!!!!\n"
-                     << endl;
-                lineFlag = true;
-                pub_vel(0, 0, isMove, *vel_pub);
-                loop_rate.sleep();
-            }
+            pub_vel(Vcar, omega, isMove, *vel_pub);
 
-            // 判断是否找到路口横线
-
-            // cout << "distance: " << distance << endl;
-
-            if ((distance > LimitDistance) && (endlines_size > 3))
-            // if (true)
-            {
-                isMove = false;
-                pub_vel(0, 0, true, *vel_pub);
-                PidCalcState = PID_CALC_STATE::PillDetecting;
-                CvState = CV_STATE::PillDetecting;
-                this_thread::sleep_for(0.2s);
-            }
-
-            break;
-        case PID_CALC_STATE::PillDetecting:
-            CvState = CV_STATE::PillDetecting;
-            isMove = false;
-            // dip_main_running = false;
-
-            double compactness, eccentricity;
-
-            // 读取数据
-            {
-                lock_guard<std::mutex> lock(MyMutex);
-                compactness = sender_compactness;
-                eccentricity = sender_eccentricity;
-            }
-
-            if (turnDirection == 0)
-            {
-                if ((compactness < 15) && (compactness > 13) && (eccentricity < 0.5))
-                {
-                    turnflagCount++;
-                }
-                else if ((compactness > 15) && (eccentricity > 0.6))
-                {
-                    turnflagCount--;
-                }
-
-                if (turnflagCount > 5)
-                {
-                    turnDirection = 1;
-                }
-                if (turnflagCount < -5)
-                {
-                    turnDirection = -1;
-                }
-            }
-            else
-            {
-                cout << "turnDirection: " << turnDirection << endl;
-                PidCalcState = PID_CALC_STATE::Running;
-                CvState = CV_STATE::LineSearching;
-                lineFlag = false;
-                isMove = true;
-                switch (turnDirection)
-                {
-                case -1:
-                    RunMode = 2;
-                    for (int i = 0; i < 10; i++)
-                    {
-                        pub_vel(0, 1.57, true, *vel_pub);
-                        loop_rate.sleep();
-                    }
-
-                    break;
-
-                case 1:
-                    RunMode = 1;
-                    for (int i = 0; i < 10; i++)
-                    {
-                        pub_vel(0, -1.57, true, *vel_pub);
-                        loop_rate.sleep();
-                    }
-                    break;
-
-                default:
-                    break;
-                }
-                // magic_turning(turnDirection, *vel_pub);
-                // pub_vel(0, 0, true, *vel_pub);
-                // this_thread::sleep_for(0.5s);
-                // pub_vel(Vcar, 0, true, *vel_pub);
-                // this_thread::sleep_for(3s);
-                // pub_vel(0, 0, false, *vel_pub);
-                // return;
-            }
-
-            break;
         case PID_CALC_STATE::Stop:
             cout << "pid_main Stopping" << endl;
             return;

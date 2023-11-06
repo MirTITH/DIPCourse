@@ -1,6 +1,7 @@
 #include "cv_thread.hpp"
 #include "dip_process.hpp"
-#include "pill_detect.hpp"
+
+#define USE_VIDEO 1
 
 using namespace std;
 using namespace cv;
@@ -8,20 +9,18 @@ using namespace cv;
 atomic<CV_STATE> CvState;
 std::mutex MyMutex;
 
-double sender_endlineDistanceNormlized = 0;
-vector<Vec2f> sender_endlines;
-vector<Point3d> sendleftLine(EdgePointNum);
-vector<Point3d> sendrightLine(EdgePointNum);
-vector<Point3d> sendmiddleLine(EdgePointNum);
-// atomic_bool dip_main_running;
-double sender_compactness = 0;
-double sender_eccentricity = 0;
+vector<Point3d> kLeftLine(EdgePointNum);
+vector<Point3d> kRightLine(EdgePointNum);
+vector<Point3d> kMiddleLine(EdgePointNum);
 
 void CvThread()
 {
     VideoCapture capture;
+#ifdef USE_VIDEO
     capture.open("/home/xy/Documents/2.webm");
-    // capture.open(1);
+#else
+    capture.open(1);
+#endif
 
     if (capture.isOpened() == false)
     {
@@ -29,43 +28,40 @@ void CvThread()
         exit(0);
     }
 
-    double compactness = 0;
-    double eccentricity = 0;
-
     while (true)
     {
-        // cout << "CvState: " << (int)CvState.load() << endl;
-        dip_process_loop(capture);
+        switch (CvState)
+        {
+        case CV_STATE::LineSearching:
+            dip_process_loop(capture);
 
-        // switch (CvState)
-        // {
-        // case CV_STATE::LineSearching:
-        //     // cout << "CvThread LineSearching" << endl;
-        //     dip_process_loop(capture);
-        //     break;
-        // case CV_STATE::PillDetecting:
-        //     // cout << "CvThread PillDetecting" << endl;
-        //     pill_detect_loop(capture, compactness, eccentricity);
+#ifdef USE_VIDEO
+            // 循环播放
+            if (capture.get(cv::CAP_PROP_POS_FRAMES) == capture.get(cv::CAP_PROP_FRAME_COUNT))
+            {
+                capture.set(cv::CAP_PROP_POS_FRAMES, 0);
+            }
+#endif
 
-        //     {
-        //         lock_guard<mutex> lock(MyMutex);
-        //         sender_compactness = compactness;
-        //         sender_eccentricity = eccentricity;
-        //     }
-        //     break;
-        // case CV_STATE::Pause:
-        //     cout << "CvThread Pausing" << endl;
-        //     this_thread::sleep_for(10ms);
-        //     break;
+        case CV_STATE::Detecting:
+            // TODO
+            this_thread::sleep_for(10ms);
+            break;
 
-        // case CV_STATE::Stop:
-        //     cout << "CvThread Stopped" << endl;
-        //     return;
-        //     break;
-        // default:
-        //     cout << "CvThread:CvState undefined" << endl;
-        //     this_thread::sleep_for(10ms);
-        //     break;
-        // }
+        case CV_STATE::Pause:
+            cout << "CvThread Pausing" << endl;
+            this_thread::sleep_for(10ms);
+            break;
+
+        case CV_STATE::Stop:
+            cout << "CvThread Stopped" << endl;
+            return;
+            break;
+
+        default:
+            cout << "CvThread:CvState undefined" << endl;
+            this_thread::sleep_for(10ms);
+            break;
+        }
     }
 }
